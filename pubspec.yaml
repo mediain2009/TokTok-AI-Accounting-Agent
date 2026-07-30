@@ -1,0 +1,23 @@
+name: tax_invoice
+description: 세금계산서 관리 시스템
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  sqflite: ^2.3.0
+  sqflite_common_ffi: ^2.3.0+2
+  path_provider: ^2.1.1
+  path: ^1.9.0
+  intl: ^0.19.0
+  http: ^1.2.0
+  pdf: ^3.11.0
+  printing: ^5.13.0
+  file_picker: ^8.1.2
+
+flutter:
+  uses-material-design: true
