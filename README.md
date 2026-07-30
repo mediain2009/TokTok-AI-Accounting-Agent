@@ -1,8 +1,8 @@
 # 톡톡AI,간편회계(TokTok AI;Accounting Agent)
 
-Program Name: TokTok AI; Accounting Agent
-Author: MediaIN https://www.mediain.co.kr
-E-Mail : pixel@mediain.co.kr
+**Program Name**: TokTok AI; Accounting Agent 
+**Author**:  MediaIN https://www.mediain.co.kr
+**E-Mail**: pixel@mediain.co.kr
 
 This project is an open-source accounting ledger designed for the Korean SOHO business environment, featuring a simple agent created for bakers that runs on a basic local SQLite DB.
 
