@@ -1,5 +1,11 @@
 # 톡톡AI,간편회계
 
+This project is an open-source accounting ledger designed for the Korean SOHO business environment, featuring a simple agent created for bakers that runs on a basic local SQLite DB.
+
+For commercial services, we are developing versions for PostgreSQL, an open-source object-relational database known for its stability and scalability, in addition to MariaDB (MySQL) and MS-SQL. We are designing lightweight agent services for the web, CRM, shopping malls, and IoT devices.
+
+We look forward to your interest and feedback.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 ![Flutter](https://img.shields.io/badge/Flutter-3.x-02569B?logo=flutter)
 ![Platform](https://img.shields.io/badge/Platform-Windows-0078D6?logo=windows)
