@@ -1,4 +1,4 @@
-# 톡톡AI,간편회계
+# 톡톡AI,간편회계(TokTok AI;Accounting Agent)
 
 This project is an open-source accounting ledger designed for the Korean SOHO business environment, featuring a simple agent created for bakers that runs on a basic local SQLite DB.
 
