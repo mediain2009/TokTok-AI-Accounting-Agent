@@ -1,6 +1,6 @@
 # 톡톡AI,간편회계(TokTok AI;Accounting Agent)
 
-**Program Name**: TokTok AI; Accounting Agent 
+**Program Name**: TokTok AI; Accounting Agent
 **Author**:  MediaIN https://www.mediain.co.kr
 **E-Mail**: pixel@mediain.co.kr
 
@@ -240,21 +240,6 @@ cd tax_invoice_flutter
 flutter pub get
 flutter run -d windows
 ```
-
-**설치파일 생성**
-
-```cmd
-flutter build windows --release
-```
-
-[Inno Setup 6](https://jrsoftware.org/isdl.php) 설치 후:
-
-```cmd
-"C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
-```
-
-→ `installer_output\TokTokAI_Setup_1.0.0.exe` 생성
-
 ---
 
 ## 기술 스택
