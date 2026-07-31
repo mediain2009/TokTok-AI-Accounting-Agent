@@ -63,7 +63,7 @@ class _SummaryScreenState extends State<SummaryScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('합계표', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-              Text('세금/거래/지출 > 세금계산서 > 합계표',
+              Text('계산서 > 합계표',
                   style: TextStyle(fontSize: 11, color: Colors.grey)),
             ],
           ),

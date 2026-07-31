@@ -458,6 +458,308 @@ class AiMessage {
   }) : time = time ?? DateTime.now();
 }
 
+// ─── Warehouse Models ─────────────────────────────────────────────────────────
+
+class Warehouse {
+  final int? id;
+  final String name;
+  final String location;
+  final String manager;
+  final String phone;
+  final String note;
+  final bool isActive;
+
+  const Warehouse({
+    this.id,
+    required this.name,
+    this.location = '',
+    this.manager = '',
+    this.phone = '',
+    this.note = '',
+    this.isActive = true,
+  });
+
+  factory Warehouse.fromMap(Map<String, dynamic> m) => Warehouse(
+    id:       m['id'] as int?,
+    name:     (m['name']     as String?) ?? '',
+    location: (m['location'] as String?) ?? '',
+    manager:  (m['manager']  as String?) ?? '',
+    phone:    (m['phone']    as String?) ?? '',
+    note:     (m['note']     as String?) ?? '',
+    isActive: (m['is_active'] as int?) == 1,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'name':      name,
+    'location':  location,
+    'manager':   manager,
+    'phone':     phone,
+    'note':      note,
+    'is_active': isActive ? 1 : 0,
+  };
+}
+
+class InventoryItem {
+  final int? id;
+  final String code;
+  final String name;
+  final String category;
+  final String unit;
+  final int costPrice;
+  final int sellPrice;
+  final int safetyStock;
+  final String note;
+  final bool isActive;
+
+  const InventoryItem({
+    this.id,
+    this.code = '',
+    required this.name,
+    this.category = '',
+    this.unit = '개',
+    this.costPrice = 0,
+    this.sellPrice = 0,
+    this.safetyStock = 0,
+    this.note = '',
+    this.isActive = true,
+  });
+
+  factory InventoryItem.fromMap(Map<String, dynamic> m) => InventoryItem(
+    id:          m['id'] as int?,
+    code:        (m['code']         as String?) ?? '',
+    name:        (m['name']         as String?) ?? '',
+    category:    (m['category']     as String?) ?? '',
+    unit:        (m['unit']         as String?) ?? '개',
+    costPrice:   m['cost_price']    as int? ?? 0,
+    sellPrice:   m['sell_price']    as int? ?? 0,
+    safetyStock: m['safety_stock']  as int? ?? 0,
+    note:        (m['note']         as String?) ?? '',
+    isActive:    (m['is_active']    as int?) == 1,
+  );
+
+  Map<String, dynamic> toMap() => {
+    'code':         code,
+    'name':         name,
+    'category':     category,
+    'unit':         unit,
+    'cost_price':   costPrice,
+    'sell_price':   sellPrice,
+    'safety_stock': safetyStock,
+    'note':         note,
+    'is_active':    isActive ? 1 : 0,
+  };
+}
+
+class InventoryInbound {
+  final int? id;
+  final String inboundNo;
+  final String inboundDate;
+  final int warehouseId;
+  final String warehouseName;
+  final int itemId;
+  final String itemName;
+  final String itemUnit;
+  final int quantity;
+  final int unitPrice;
+  final String supplier;
+  final String note;
+  final String createdAt;
+
+  const InventoryInbound({
+    this.id,
+    this.inboundNo = '',
+    required this.inboundDate,
+    required this.warehouseId,
+    this.warehouseName = '',
+    required this.itemId,
+    this.itemName = '',
+    this.itemUnit = '개',
+    required this.quantity,
+    this.unitPrice = 0,
+    this.supplier = '',
+    this.note = '',
+    this.createdAt = '',
+  });
+
+  factory InventoryInbound.fromMap(Map<String, dynamic> m) => InventoryInbound(
+    id:            m['id'] as int?,
+    inboundNo:     (m['inbound_no']    as String?) ?? '',
+    inboundDate:   (m['inbound_date']  as String?) ?? '',
+    warehouseId:   m['warehouse_id']   as int? ?? 0,
+    warehouseName: (m['warehouse_name'] as String?) ?? '',
+    itemId:        m['item_id']        as int? ?? 0,
+    itemName:      (m['item_name']     as String?) ?? '',
+    itemUnit:      (m['item_unit']     as String?) ?? '개',
+    quantity:      m['quantity']       as int? ?? 0,
+    unitPrice:     m['unit_price']     as int? ?? 0,
+    supplier:      (m['supplier']      as String?) ?? '',
+    note:          (m['note']          as String?) ?? '',
+    createdAt:     (m['created_at']    as String?) ?? '',
+  );
+
+  Map<String, dynamic> toMap() => {
+    'inbound_no':   inboundNo,
+    'inbound_date': inboundDate,
+    'warehouse_id': warehouseId,
+    'item_id':      itemId,
+    'quantity':     quantity,
+    'unit_price':   unitPrice,
+    'supplier':     supplier,
+    'note':         note,
+    'created_at':   createdAt,
+  };
+}
+
+class InventoryOutbound {
+  final int? id;
+  final String outboundNo;
+  final String outboundDate;
+  final int warehouseId;
+  final String warehouseName;
+  final int itemId;
+  final String itemName;
+  final String itemUnit;
+  final int quantity;
+  final int unitPrice;
+  final String customer;
+  final String note;
+  final String createdAt;
+
+  const InventoryOutbound({
+    this.id,
+    this.outboundNo = '',
+    required this.outboundDate,
+    required this.warehouseId,
+    this.warehouseName = '',
+    required this.itemId,
+    this.itemName = '',
+    this.itemUnit = '개',
+    required this.quantity,
+    this.unitPrice = 0,
+    this.customer = '',
+    this.note = '',
+    this.createdAt = '',
+  });
+
+  factory InventoryOutbound.fromMap(Map<String, dynamic> m) => InventoryOutbound(
+    id:             m['id'] as int?,
+    outboundNo:     (m['outbound_no']   as String?) ?? '',
+    outboundDate:   (m['outbound_date'] as String?) ?? '',
+    warehouseId:    m['warehouse_id']   as int? ?? 0,
+    warehouseName:  (m['warehouse_name'] as String?) ?? '',
+    itemId:         m['item_id']        as int? ?? 0,
+    itemName:       (m['item_name']     as String?) ?? '',
+    itemUnit:       (m['item_unit']     as String?) ?? '개',
+    quantity:       m['quantity']       as int? ?? 0,
+    unitPrice:      m['unit_price']     as int? ?? 0,
+    customer:       (m['customer']      as String?) ?? '',
+    note:           (m['note']          as String?) ?? '',
+    createdAt:      (m['created_at']    as String?) ?? '',
+  );
+
+  Map<String, dynamic> toMap() => {
+    'outbound_no':   outboundNo,
+    'outbound_date': outboundDate,
+    'warehouse_id':  warehouseId,
+    'item_id':       itemId,
+    'quantity':      quantity,
+    'unit_price':    unitPrice,
+    'customer':      customer,
+    'note':          note,
+    'created_at':    createdAt,
+  };
+}
+
+class InventoryTransfer {
+  final int? id;
+  final String transferNo;
+  final String transferDate;
+  final int fromWarehouseId;
+  final String fromWarehouseName;
+  final int toWarehouseId;
+  final String toWarehouseName;
+  final int itemId;
+  final String itemName;
+  final String itemUnit;
+  final int quantity;
+  final String note;
+  final String createdAt;
+
+  const InventoryTransfer({
+    this.id,
+    this.transferNo = '',
+    required this.transferDate,
+    required this.fromWarehouseId,
+    this.fromWarehouseName = '',
+    required this.toWarehouseId,
+    this.toWarehouseName = '',
+    required this.itemId,
+    this.itemName = '',
+    this.itemUnit = '개',
+    required this.quantity,
+    this.note = '',
+    this.createdAt = '',
+  });
+
+  factory InventoryTransfer.fromMap(Map<String, dynamic> m) => InventoryTransfer(
+    id:               m['id'] as int?,
+    transferNo:       (m['transfer_no']         as String?) ?? '',
+    transferDate:     (m['transfer_date']        as String?) ?? '',
+    fromWarehouseId:  m['from_warehouse_id']     as int? ?? 0,
+    fromWarehouseName:(m['from_warehouse_name']  as String?) ?? '',
+    toWarehouseId:    m['to_warehouse_id']       as int? ?? 0,
+    toWarehouseName:  (m['to_warehouse_name']    as String?) ?? '',
+    itemId:           m['item_id']               as int? ?? 0,
+    itemName:         (m['item_name']            as String?) ?? '',
+    itemUnit:         (m['item_unit']            as String?) ?? '개',
+    quantity:         m['quantity']              as int? ?? 0,
+    note:             (m['note']                as String?) ?? '',
+    createdAt:        (m['created_at']           as String?) ?? '',
+  );
+
+  Map<String, dynamic> toMap() => {
+    'transfer_no':      transferNo,
+    'transfer_date':    transferDate,
+    'from_warehouse_id': fromWarehouseId,
+    'to_warehouse_id':  toWarehouseId,
+    'item_id':          itemId,
+    'quantity':         quantity,
+    'note':             note,
+    'created_at':       createdAt,
+  };
+}
+
+class StockRow {
+  final int warehouseId;
+  final String warehouseName;
+  final int itemId;
+  final String itemName;
+  final String itemCode;
+  final String itemUnit;
+  final int safetyStock;
+  final int inQty;
+  final int outQty;
+  final int transferIn;
+  final int transferOut;
+  int get stock => inQty - outQty + transferIn - transferOut;
+
+  const StockRow({
+    required this.warehouseId,
+    required this.warehouseName,
+    required this.itemId,
+    required this.itemName,
+    this.itemCode = '',
+    this.itemUnit = '개',
+    this.safetyStock = 0,
+    this.inQty = 0,
+    this.outQty = 0,
+    this.transferIn = 0,
+    this.transferOut = 0,
+  });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+
 class SummaryRow {
   final String partnerName;
   final String businessNo;

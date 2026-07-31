@@ -226,7 +226,7 @@ class _PurchasesScreenState extends State<PurchasesScreen>
             children: [
               const Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
                 Text('매입조회', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                Text('세금/거래/지출 > 세금계산서 > 매입조회',
+                Text('계산서 > 매입조회',
                     style: TextStyle(fontSize: 11, color: Colors.grey)),
               ]),
               const Spacer(),

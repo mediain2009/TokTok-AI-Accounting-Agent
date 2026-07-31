@@ -240,9 +240,9 @@ class _AiChatPanelState extends State<AiChatPanel> {
                     '전화: ${partner.phone}',
               ));
             });
-            // 거래처 관리 화면으로 이동 + 목록 갱신
+            // 거래처 관리 화면으로 이동 (고객관리 탭) + 목록 갱신
             widget.onPartnerCreated?.call();
-            widget.onNavigate(0, 4);
+            widget.onNavigate(3, 0);
           } catch (e) {
             setState(() {
               _messages.add(AiMessage(
@@ -327,7 +327,7 @@ class _AiChatPanelState extends State<AiChatPanel> {
                   '공급가: ${_fmtAmount(srcDoc.supplyAmount)}원\n'
                   '세액: ${_fmtAmount(srcDoc.taxAmount)}원\n'
                   '합계: ${_fmtAmount(srcDoc.totalAmount)}원\n\n'
-                  '세금/거래 > 발행 > 미발행 목록에서 확인하세요.',
+                  '계산서 > 발행 > 미발행 목록에서 확인하세요.',
             )));
           } catch (e) {
             setState(() => _messages.add(AiMessage(
@@ -425,9 +425,11 @@ class _AiChatPanelState extends State<AiChatPanel> {
 
   String _screenName(int t, int s) {
     const screens = [
-      ['발행','매출조회','매입조회','합계표','거래처관리'],
+      ['발행','매출조회','매입조회','합계표'],
       ['견적서','거래명세표','입금표'],
-      ['기본정보','AI설정'],
+      ['창고설정','품목관리','입고','출고','창고간이동','재고현황'],
+      ['거래처관리'],
+      ['회사정보','AI설정','메신저설정'],
     ];
     if (t < screens.length && s < screens[t].length) return screens[t][s];
     return '알 수 없음';

@@ -20,7 +20,7 @@ class DbHelper {
 
     return openDatabase(
       dbPath,
-      version: 4,
+      version: 5,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -73,6 +73,7 @@ class DbHelper {
     ''');
     await _createNewTables(db);
     await _createV3Tables(db);
+    await _createV5Tables(db);
   }
 
   static Future<void> _onUpgrade(Database db, int oldV, int newV) async {
@@ -93,6 +94,84 @@ class DbHelper {
         )
       ''');
     }
+    if (oldV < 5) await _createV5Tables(db);
+  }
+
+  static Future<void> _createV5Tables(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS warehouses (
+        id        INTEGER PRIMARY KEY AUTOINCREMENT,
+        name      TEXT NOT NULL,
+        location  TEXT DEFAULT '',
+        manager   TEXT DEFAULT '',
+        phone     TEXT DEFAULT '',
+        note      TEXT DEFAULT '',
+        is_active INTEGER DEFAULT 1,
+        created_at TEXT
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS inventory_items (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        code         TEXT DEFAULT '',
+        name         TEXT NOT NULL,
+        category     TEXT DEFAULT '',
+        unit         TEXT DEFAULT '개',
+        cost_price   INTEGER DEFAULT 0,
+        sell_price   INTEGER DEFAULT 0,
+        safety_stock INTEGER DEFAULT 0,
+        note         TEXT DEFAULT '',
+        is_active    INTEGER DEFAULT 1
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS inventory_inbound (
+        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+        inbound_no   TEXT DEFAULT '',
+        inbound_date TEXT NOT NULL,
+        warehouse_id INTEGER NOT NULL,
+        item_id      INTEGER NOT NULL,
+        quantity     INTEGER DEFAULT 0,
+        unit_price   INTEGER DEFAULT 0,
+        supplier     TEXT DEFAULT '',
+        note         TEXT DEFAULT '',
+        created_at   TEXT,
+        FOREIGN KEY(warehouse_id) REFERENCES warehouses(id),
+        FOREIGN KEY(item_id)      REFERENCES inventory_items(id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS inventory_outbound (
+        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+        outbound_no   TEXT DEFAULT '',
+        outbound_date TEXT NOT NULL,
+        warehouse_id  INTEGER NOT NULL,
+        item_id       INTEGER NOT NULL,
+        quantity      INTEGER DEFAULT 0,
+        unit_price    INTEGER DEFAULT 0,
+        customer      TEXT DEFAULT '',
+        note          TEXT DEFAULT '',
+        created_at    TEXT,
+        FOREIGN KEY(warehouse_id) REFERENCES warehouses(id),
+        FOREIGN KEY(item_id)      REFERENCES inventory_items(id)
+      )
+    ''');
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS inventory_transfer (
+        id                INTEGER PRIMARY KEY AUTOINCREMENT,
+        transfer_no       TEXT DEFAULT '',
+        transfer_date     TEXT NOT NULL,
+        from_warehouse_id INTEGER NOT NULL,
+        to_warehouse_id   INTEGER NOT NULL,
+        item_id           INTEGER NOT NULL,
+        quantity          INTEGER DEFAULT 0,
+        note              TEXT DEFAULT '',
+        created_at        TEXT,
+        FOREIGN KEY(from_warehouse_id) REFERENCES warehouses(id),
+        FOREIGN KEY(to_warehouse_id)   REFERENCES warehouses(id),
+        FOREIGN KEY(item_id)           REFERENCES inventory_items(id)
+      )
+    ''');
   }
 
   static Future<void> _createNewTables(Database db) async {
@@ -473,6 +552,257 @@ class DbHelper {
       await d.update('ai_settings', s.toMap(),
           where: 'id=?', whereArgs: [existing.first['id']]);
     }
+  }
+
+  // ─── Warehouses ────────────────────────────────────────────────────
+
+  static Future<List<Warehouse>> getWarehouses({bool activeOnly = false}) async {
+    final d = await db;
+    final where = activeOnly ? 'is_active=1' : null;
+    final rows = await d.query('warehouses', where: where, orderBy: 'id');
+    return rows.map(Warehouse.fromMap).toList();
+  }
+
+  static Future<int> insertWarehouse(Warehouse w) async {
+    final d = await db;
+    final map = w.toMap()..['created_at'] = DateTime.now().toIso8601String();
+    return d.insert('warehouses', map);
+  }
+
+  static Future<void> updateWarehouse(Warehouse w) async {
+    final d = await db;
+    await d.update('warehouses', w.toMap(), where: 'id=?', whereArgs: [w.id]);
+  }
+
+  static Future<void> deleteWarehouse(int id) async {
+    final d = await db;
+    await d.delete('warehouses', where: 'id=?', whereArgs: [id]);
+  }
+
+  // ─── Inventory Items ───────────────────────────────────────────────
+
+  static Future<List<InventoryItem>> getInventoryItems({bool activeOnly = false}) async {
+    final d = await db;
+    final where = activeOnly ? 'is_active=1' : null;
+    final rows = await d.query('inventory_items', where: where, orderBy: 'name');
+    return rows.map(InventoryItem.fromMap).toList();
+  }
+
+  static Future<int> insertInventoryItem(InventoryItem item) async {
+    final d = await db;
+    return d.insert('inventory_items', item.toMap());
+  }
+
+  static Future<void> updateInventoryItem(InventoryItem item) async {
+    final d = await db;
+    await d.update('inventory_items', item.toMap(), where: 'id=?', whereArgs: [item.id]);
+  }
+
+  static Future<void> deleteInventoryItem(int id) async {
+    final d = await db;
+    await d.delete('inventory_items', where: 'id=?', whereArgs: [id]);
+  }
+
+  // ─── Inventory Inbound ─────────────────────────────────────────────
+
+  static Future<List<InventoryInbound>> getInbounds({
+    String? start, String? end, int? warehouseId,
+  }) async {
+    final d = await db;
+    final cond = <String>[];
+    final args = <dynamic>[];
+    if (warehouseId != null) { cond.add('b.warehouse_id=?'); args.add(warehouseId); }
+    if (start != null) { cond.add("b.inbound_date>=?"); args.add(start); }
+    if (end != null)   { cond.add("b.inbound_date<=?"); args.add(end); }
+    final where = cond.isEmpty ? '' : 'WHERE ${cond.join(' AND ')}';
+    final rows = await d.rawQuery('''
+      SELECT b.*, w.name AS warehouse_name, i.name AS item_name, i.unit AS item_unit
+      FROM inventory_inbound b
+      LEFT JOIN warehouses w ON b.warehouse_id = w.id
+      LEFT JOIN inventory_items i ON b.item_id = i.id
+      $where
+      ORDER BY b.inbound_date DESC, b.id DESC
+    ''', args);
+    return rows.map(InventoryInbound.fromMap).toList();
+  }
+
+  static Future<int> insertInbound(InventoryInbound ib) async {
+    final d = await db;
+    final today = DateTime.now().toString().substring(0, 10).replaceAll('-', '');
+    final cnt = Sqflite.firstIntValue(await d.rawQuery(
+        "SELECT COUNT(*) FROM inventory_inbound WHERE inbound_date=?", [ib.inboundDate])) ?? 0;
+    final no = 'IN-$today-${(cnt + 1).toString().padLeft(3, '0')}';
+    final map = ib.toMap()
+      ..['inbound_no'] = no
+      ..['created_at'] = DateTime.now().toIso8601String();
+    return d.insert('inventory_inbound', map);
+  }
+
+  static Future<void> deleteInbound(int id) async {
+    final d = await db;
+    await d.delete('inventory_inbound', where: 'id=?', whereArgs: [id]);
+  }
+
+  // ─── Inventory Outbound ────────────────────────────────────────────
+
+  static Future<List<InventoryOutbound>> getOutbounds({
+    String? start, String? end, int? warehouseId,
+  }) async {
+    final d = await db;
+    final cond = <String>[];
+    final args = <dynamic>[];
+    if (warehouseId != null) { cond.add('b.warehouse_id=?'); args.add(warehouseId); }
+    if (start != null) { cond.add("b.outbound_date>=?"); args.add(start); }
+    if (end != null)   { cond.add("b.outbound_date<=?"); args.add(end); }
+    final where = cond.isEmpty ? '' : 'WHERE ${cond.join(' AND ')}';
+    final rows = await d.rawQuery('''
+      SELECT b.*, w.name AS warehouse_name, i.name AS item_name, i.unit AS item_unit
+      FROM inventory_outbound b
+      LEFT JOIN warehouses w ON b.warehouse_id = w.id
+      LEFT JOIN inventory_items i ON b.item_id = i.id
+      $where
+      ORDER BY b.outbound_date DESC, b.id DESC
+    ''', args);
+    return rows.map(InventoryOutbound.fromMap).toList();
+  }
+
+  static Future<int> insertOutbound(InventoryOutbound ob) async {
+    final d = await db;
+    final today = DateTime.now().toString().substring(0, 10).replaceAll('-', '');
+    final cnt = Sqflite.firstIntValue(await d.rawQuery(
+        "SELECT COUNT(*) FROM inventory_outbound WHERE outbound_date=?", [ob.outboundDate])) ?? 0;
+    final no = 'OUT-$today-${(cnt + 1).toString().padLeft(3, '0')}';
+    final map = ob.toMap()
+      ..['outbound_no'] = no
+      ..['created_at'] = DateTime.now().toIso8601String();
+    return d.insert('inventory_outbound', map);
+  }
+
+  static Future<void> deleteOutbound(int id) async {
+    final d = await db;
+    await d.delete('inventory_outbound', where: 'id=?', whereArgs: [id]);
+  }
+
+  // ─── Inventory Transfer ────────────────────────────────────────────
+
+  static Future<List<InventoryTransfer>> getTransfers({
+    String? start, String? end,
+  }) async {
+    final d = await db;
+    final cond = <String>[];
+    final args = <dynamic>[];
+    if (start != null) { cond.add("t.transfer_date>=?"); args.add(start); }
+    if (end != null)   { cond.add("t.transfer_date<=?"); args.add(end); }
+    final where = cond.isEmpty ? '' : 'WHERE ${cond.join(' AND ')}';
+    final rows = await d.rawQuery('''
+      SELECT t.*,
+             wf.name AS from_warehouse_name,
+             wt.name AS to_warehouse_name,
+             i.name  AS item_name,
+             i.unit  AS item_unit
+      FROM inventory_transfer t
+      LEFT JOIN warehouses wf ON t.from_warehouse_id = wf.id
+      LEFT JOIN warehouses wt ON t.to_warehouse_id   = wt.id
+      LEFT JOIN inventory_items i ON t.item_id = i.id
+      $where
+      ORDER BY t.transfer_date DESC, t.id DESC
+    ''', args);
+    return rows.map(InventoryTransfer.fromMap).toList();
+  }
+
+  static Future<int> insertTransfer(InventoryTransfer tr) async {
+    final d = await db;
+    final today = DateTime.now().toString().substring(0, 10).replaceAll('-', '');
+    final cnt = Sqflite.firstIntValue(await d.rawQuery(
+        "SELECT COUNT(*) FROM inventory_transfer WHERE transfer_date=?", [tr.transferDate])) ?? 0;
+    final no = 'TR-$today-${(cnt + 1).toString().padLeft(3, '0')}';
+    final map = tr.toMap()
+      ..['transfer_no'] = no
+      ..['created_at'] = DateTime.now().toIso8601String();
+    return d.insert('inventory_transfer', map);
+  }
+
+  static Future<void> deleteTransfer(int id) async {
+    final d = await db;
+    await d.delete('inventory_transfer', where: 'id=?', whereArgs: [id]);
+  }
+
+  // ─── Stock Status (재고현황) ────────────────────────────────────────
+
+  static Future<List<StockRow>> getStockStatus({int? warehouseId}) async {
+    final d = await db;
+    final wFilter = warehouseId != null ? 'AND b.warehouse_id=$warehouseId' : '';
+    final wFilterOut = warehouseId != null ? 'AND o.warehouse_id=$warehouseId' : '';
+    final wFilterTrIn  = warehouseId != null ? 'AND t.to_warehouse_id=$warehouseId' : '';
+    final wFilterTrOut = warehouseId != null ? 'AND t.from_warehouse_id=$warehouseId' : '';
+
+    // 입고합계
+    final inRows = await d.rawQuery('''
+      SELECT b.warehouse_id, b.item_id, SUM(b.quantity) AS total
+      FROM inventory_inbound b WHERE 1=1 $wFilter
+      GROUP BY b.warehouse_id, b.item_id
+    ''');
+    // 출고합계
+    final outRows = await d.rawQuery('''
+      SELECT o.warehouse_id, o.item_id, SUM(o.quantity) AS total
+      FROM inventory_outbound o WHERE 1=1 $wFilterOut
+      GROUP BY o.warehouse_id, o.item_id
+    ''');
+    // 이동 입고합계
+    final trInRows = await d.rawQuery('''
+      SELECT t.to_warehouse_id AS warehouse_id, t.item_id, SUM(t.quantity) AS total
+      FROM inventory_transfer t WHERE 1=1 $wFilterTrIn
+      GROUP BY t.to_warehouse_id, t.item_id
+    ''');
+    // 이동 출고합계
+    final trOutRows = await d.rawQuery('''
+      SELECT t.from_warehouse_id AS warehouse_id, t.item_id, SUM(t.quantity) AS total
+      FROM inventory_transfer t WHERE 1=1 $wFilterTrOut
+      GROUP BY t.from_warehouse_id, t.item_id
+    ''');
+
+    // 집계용 맵
+    Map<String, int> inMap = {}, outMap = {}, trInMap = {}, trOutMap = {};
+    for (final r in inRows)    inMap['${r['warehouse_id']}_${r['item_id']}']    = r['total'] as int? ?? 0;
+    for (final r in outRows)   outMap['${r['warehouse_id']}_${r['item_id']}']   = r['total'] as int? ?? 0;
+    for (final r in trInRows)  trInMap['${r['warehouse_id']}_${r['item_id']}']  = r['total'] as int? ?? 0;
+    for (final r in trOutRows) trOutMap['${r['warehouse_id']}_${r['item_id']}'] = r['total'] as int? ?? 0;
+
+    // 창고 × 품목 조합
+    final keys = <String>{...inMap.keys, ...outMap.keys, ...trInMap.keys, ...trOutMap.keys};
+    if (keys.isEmpty) return [];
+
+    final wRows = await d.query('warehouses', where: 'is_active=1');
+    final iRows = await d.query('inventory_items', where: 'is_active=1');
+    final wMap = {for (final r in wRows) r['id'] as int: r};
+    final iMap = {for (final r in iRows) r['id'] as int: r};
+
+    final result = <StockRow>[];
+    for (final key in keys) {
+      final parts = key.split('_');
+      final wid = int.tryParse(parts[0]) ?? 0;
+      final iid = int.tryParse(parts[1]) ?? 0;
+      final w = wMap[wid];
+      final i = iMap[iid];
+      result.add(StockRow(
+        warehouseId:   wid,
+        warehouseName: (w?['name'] as String?) ?? '(삭제됨)',
+        itemId:        iid,
+        itemName:      (i?['name'] as String?) ?? '(삭제됨)',
+        itemCode:      (i?['code'] as String?) ?? '',
+        itemUnit:      (i?['unit'] as String?) ?? '개',
+        safetyStock:   i?['safety_stock'] as int? ?? 0,
+        inQty:         inMap[key] ?? 0,
+        outQty:        outMap[key] ?? 0,
+        transferIn:    trInMap[key] ?? 0,
+        transferOut:   trOutMap[key] ?? 0,
+      ));
+    }
+    result.sort((a, b) {
+      final w = a.warehouseName.compareTo(b.warehouseName);
+      return w != 0 ? w : a.itemName.compareTo(b.itemName);
+    });
+    return result;
   }
 
   // 다음 문서 번호 자동 생성 (예: EST-20260729-001)

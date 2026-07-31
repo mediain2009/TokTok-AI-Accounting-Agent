@@ -282,9 +282,15 @@ class _DocumentFormDialogState extends State<_DocumentFormDialog> {
   bool _saving = false;
   bool _includeTax = true; // 과세 여부
 
+  List<InventoryItem> _inventoryItems = []; // 창고 품목 자동완성용
+  List<Partner>       _partners       = []; // 거래처 자동완성용
+  final FocusNode _customerNameFocus  = FocusNode();
+
   @override
   void initState() {
     super.initState();
+    _loadInventoryItems();
+    _loadPartners();
     // AI 초기 데이터 적용
     if (widget.initialItems.isNotEmpty) {
       for (final item in widget.initialItems) {
@@ -308,7 +314,19 @@ class _DocumentFormDialogState extends State<_DocumentFormDialog> {
     for (final c in [_customerName, _customerBizNo, _customerAddress, _customerContact, _note, _docDate]) {
       c.dispose();
     }
+    _customerNameFocus.dispose();
+    for (final r in _items) r.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadPartners() async {
+    final list = await DbHelper.getPartners();
+    if (mounted) setState(() => _partners = list);
+  }
+
+  Future<void> _loadInventoryItems() async {
+    final list = await DbHelper.getInventoryItems(activeOnly: true);
+    if (mounted) setState(() => _inventoryItems = list);
   }
 
   void _addItem() => setState(() => _items.add(_ItemRow()));
@@ -407,7 +425,7 @@ class _DocumentFormDialogState extends State<_DocumentFormDialog> {
                       // ── 공급받는자 ──
                       _sectionLabel('공급받는자'),
                       Row(children: [
-                        Expanded(child: _tf('거래처명 *', _customerName, required: true)),
+                        Expanded(child: _partnerAutocomplete()),
                         const SizedBox(width: 12),
                         Expanded(child: _tf('사업자등록번호', _customerBizNo)),
                         const SizedBox(width: 12),
@@ -483,7 +501,7 @@ class _DocumentFormDialogState extends State<_DocumentFormDialog> {
                           ),
                           for (int i = 0; i < _items.length; i++)
                             TableRow(children: [
-                              _cell(_items[i].nameC),
+                              _autoNameCell(_items[i]),
                               _cell(_items[i].qtyC, onChanged: (_) => setState(() => _items[i].recalc(_includeTax))),
                               _cell(_items[i].priceC, onChanged: (_) => setState(() => _items[i].recalc(_includeTax))),
                               Padding(
@@ -546,6 +564,126 @@ class _DocumentFormDialogState extends State<_DocumentFormDialog> {
     );
   }
 
+  /// 거래처명 자동완성 — 선택 시 사업자번호·연락처·주소 자동입력
+  Widget _partnerAutocomplete() {
+    if (_partners.isEmpty) {
+      // 등록된 거래처 없으면 일반 입력
+      return TextFormField(
+        controller: _customerName,
+        decoration: const InputDecoration(
+          labelText: '거래처명 *',
+          border: OutlineInputBorder(),
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        ),
+        validator: (v) => (v == null || v.isEmpty) ? '필수 입력' : null,
+      );
+    }
+
+    return RawAutocomplete<Partner>(
+      textEditingController: _customerName,
+      focusNode: _customerNameFocus,
+      optionsBuilder: (TextEditingValue tv) {
+        if (tv.text.isEmpty) return _partners;
+        final q = tv.text.toLowerCase();
+        return _partners.where((p) =>
+            p.name.toLowerCase().contains(q) ||
+            p.businessNo.contains(q));
+      },
+      displayStringForOption: (p) => p.name,
+      onSelected: (Partner selected) {
+        setState(() {
+          _customerName.text    = selected.name;
+          _customerBizNo.text   = selected.businessNo;
+          _customerContact.text = selected.phone;
+          _customerAddress.text = selected.address;
+        });
+      },
+      fieldViewBuilder: (ctx, ctrl, focus, onSubmit) => TextFormField(
+        controller: ctrl,
+        focusNode: focus,
+        decoration: const InputDecoration(
+          labelText: '거래처명 *',
+          border: OutlineInputBorder(),
+          isDense: true,
+          contentPadding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+          hintText: '거래처명 입력/선택',
+        ),
+        validator: (v) => (v == null || v.isEmpty) ? '필수 입력' : null,
+      ),
+      optionsViewBuilder: (ctx, onSelected, options) => Align(
+        alignment: Alignment.topLeft,
+        child: Material(
+          elevation: 6,
+          borderRadius: BorderRadius.circular(6),
+          clipBehavior: Clip.hardEdge,   // overflow 배너 방지
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxHeight: 240, maxWidth: 340),
+            child: ListView.separated(
+              padding: EdgeInsets.zero,
+              shrinkWrap: true,
+              itemCount: options.length,
+              separatorBuilder: (_, __) => const Divider(height: 1),
+              itemBuilder: (_, idx) {
+                final p = options.elementAt(idx);
+                return InkWell(
+                  onTap: () => onSelected(p),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(p.name,
+                            style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                            overflow: TextOverflow.ellipsis),
+                        const SizedBox(height: 2),
+                        Row(children: [
+                          if (p.businessNo.isNotEmpty) ...[
+                            Icon(Icons.badge_outlined, size: 11, color: Colors.grey[500]),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(p.businessNo,
+                                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                            const SizedBox(width: 10),
+                          ],
+                          if (p.phone.isNotEmpty) ...[
+                            Icon(Icons.phone_outlined, size: 11, color: Colors.grey[500]),
+                            const SizedBox(width: 3),
+                            Flexible(
+                              child: Text(p.phone,
+                                  style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                          ],
+                        ]),
+                        if (p.address.isNotEmpty)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 2),
+                            child: Row(children: [
+                              Icon(Icons.location_on_outlined, size: 11, color: Colors.grey[500]),
+                              const SizedBox(width: 3),
+                              Flexible(
+                                child: Text(p.address,
+                                    style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                    overflow: TextOverflow.ellipsis),
+                              ),
+                            ]),
+                          ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _sectionLabel(String t) => Padding(
     padding: const EdgeInsets.only(bottom: 6),
     child: Text(t,
@@ -596,6 +734,111 @@ class _DocumentFormDialogState extends State<_DocumentFormDialog> {
     ),
   );
 
+  /// 품목명 자동완성 셀 — 창고 품목 참조, 선택 시 단가 자동입력
+  TableCell _autoNameCell(_ItemRow row) => TableCell(
+    child: Padding(
+      padding: const EdgeInsets.all(4),
+      child: _inventoryItems.isEmpty
+          // 창고 품목 없으면 일반 입력
+          ? TextField(
+              controller: row.nameC,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                hintText: '품목명',
+              ),
+              style: const TextStyle(fontSize: 13),
+            )
+          // 창고 품목 있으면 자동완성
+          : RawAutocomplete<InventoryItem>(
+              textEditingController: row.nameC,
+              focusNode: row.nameFocus,
+              optionsBuilder: (TextEditingValue tv) {
+                if (tv.text.isEmpty) return _inventoryItems;
+                final q = tv.text.toLowerCase();
+                return _inventoryItems.where((i) =>
+                    i.name.toLowerCase().contains(q) ||
+                    i.code.toLowerCase().contains(q));
+              },
+              displayStringForOption: (i) => i.name,
+              onSelected: (InventoryItem selected) {
+                setState(() {
+                  row.nameC.text = selected.name;
+                  if (selected.sellPrice > 0) {
+                    row.priceC.text = selected.sellPrice.toString();
+                  }
+                  row.recalc(_includeTax);
+                });
+              },
+              fieldViewBuilder: (ctx, ctrl, focus, onSubmit) => TextField(
+                controller: ctrl,
+                focusNode: focus,
+                onChanged: (_) => setState(() {}),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                  hintText: '품목명 입력/선택',
+                ),
+                style: const TextStyle(fontSize: 13),
+              ),
+              optionsViewBuilder: (ctx, onSelected, options) => Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 6,
+                  borderRadius: BorderRadius.circular(6),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 220, maxWidth: 320),
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, idx) {
+                        final item = options.elementAt(idx);
+                        return InkWell(
+                          onTap: () => onSelected(item),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Row(children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(item.name,
+                                        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                                    if (item.code.isNotEmpty || item.category.isNotEmpty || item.unit.isNotEmpty)
+                                      Text(
+                                        [if (item.code.isNotEmpty) item.code,
+                                         if (item.category.isNotEmpty) item.category,
+                                         if (item.unit.isNotEmpty) item.unit].join(' · '),
+                                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (item.sellPrice > 0) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${_f(item.sellPrice)}원',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Color(0xFF0D6EFD), fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+    ),
+  );
+
   Widget _totalChip(String label, int val, {bool highlight = false}) => Column(
     crossAxisAlignment: CrossAxisAlignment.end,
     children: [
@@ -612,9 +855,10 @@ class _DocumentFormDialogState extends State<_DocumentFormDialog> {
 
 // ─── Item Row State ───────────────────────────────────────────────────────────
 class _ItemRow {
-  final nameC  = TextEditingController();
-  final qtyC   = TextEditingController(text: '1');
-  final priceC = TextEditingController(text: '0');
+  final nameC      = TextEditingController();
+  final nameFocus  = FocusNode();           // RawAutocomplete 필수
+  final qtyC       = TextEditingController(text: '1');
+  final priceC     = TextEditingController(text: '0');
 
   int supplyAmount = 0;
   int taxAmount    = 0;
@@ -628,6 +872,7 @@ class _ItemRow {
 
   void dispose() {
     nameC.dispose();
+    nameFocus.dispose();
     qtyC.dispose();
     priceC.dispose();
   }

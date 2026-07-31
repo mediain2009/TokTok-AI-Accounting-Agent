@@ -102,7 +102,7 @@ class TelegramService {
     if (aiSettings == null ||
         (aiSettings.apiKey.isEmpty && aiSettings.provider != 'ollama')) {
       await _send(token, chatId,
-          '⚠️ AI 설정이 필요합니다.\n앱 → 기본정보 → AI 설정에서 API 키를 등록하세요.');
+          '⚠️ AI 설정이 필요합니다.\n앱 → 기초설정 → AI 설정에서 API 키를 등록하세요.');
       return;
     }
 
@@ -268,7 +268,7 @@ class TelegramService {
         '📄 원본: $docNo\n'
         '🏢 거래처: ${srcDoc.customerName}\n'
         '💵 합계: ${_fmt(srcDoc.totalAmount)}원\n\n'
-        '앱 → 세금/거래 → 발행 → 미발행 에서 확인하세요.',
+        '앱 → 계산서 → 발행 → 미발행 에서 확인하세요.',
       );
     } catch (e) {
       await _send(token, chatId, '❌ 등록 오류: $e');

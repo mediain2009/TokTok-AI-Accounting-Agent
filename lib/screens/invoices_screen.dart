@@ -20,8 +20,9 @@ class _InvoicesScreenState extends State<InvoicesScreen>
   String _start = monthStart();
   String _end   = today();
 
-  List<Invoice> _invoices = [];
-  List<Partner> _partners = [];
+  List<Invoice>       _invoices       = [];
+  List<Partner>       _partners       = [];
+  List<InventoryItem> _inventoryItems = [];   // 창고 품목 자동완성용
 
   @override
   void initState() {
@@ -31,6 +32,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
       if (!_tabCtrl.indexIsChanging) _load();
     });
     _loadPartners();
+    _loadInventoryItems();
     _load();
   }
 
@@ -43,6 +45,11 @@ class _InvoicesScreenState extends State<InvoicesScreen>
   Future<void> _loadPartners() async {
     final list = await DbHelper.getPartners();
     setState(() => _partners = list);
+  }
+
+  Future<void> _loadInventoryItems() async {
+    final list = await DbHelper.getInventoryItems(activeOnly: true);
+    if (mounted) setState(() => _inventoryItems = list);
   }
 
   Future<void> _load() async {
@@ -80,9 +87,14 @@ class _InvoicesScreenState extends State<InvoicesScreen>
     int? selPartnerId;
     final memoC       = TextEditingController();
 
-    // Item rows
+    // Item rows — FocusNode required for RawAutocomplete
     final List<Map<String, dynamic>> itemRows = [
-      {'name': TextEditingController(), 'qty': TextEditingController(text: '1'), 'price': TextEditingController(text: '0')},
+      {
+        'name':      TextEditingController(),
+        'nameFocus': FocusNode(),
+        'qty':       TextEditingController(text: '1'),
+        'price':     TextEditingController(text: '0'),
+      },
     ];
 
     await showDialog(
@@ -145,9 +157,10 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                       const Spacer(),
                       TextButton.icon(
                         onPressed: () => setDlg(() => itemRows.add({
-                          'name': TextEditingController(),
-                          'qty': TextEditingController(text: '1'),
-                          'price': TextEditingController(text: '0'),
+                          'name':      TextEditingController(),
+                          'nameFocus': FocusNode(),
+                          'qty':       TextEditingController(text: '1'),
+                          'price':     TextEditingController(text: '0'),
                         })),
                         icon: const Icon(Icons.add, size: 16),
                         label: const Text('품목 추가'),
@@ -175,7 +188,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                           final i = entry.key;
                           final row = entry.value;
                           return TableRow(children: [
-                            _itemCell(row['name']),
+                            _autoItemCell(row, setDlg),
                             _numCell(row['qty'], onChanged: (_) => setDlg(() {})),
                             _numCell(row['price'], onChanged: (_) => setDlg(() {})),
                             _readonlyCell(_calcSupply(row, selType)),
@@ -257,13 +270,111 @@ class _InvoicesScreenState extends State<InvoicesScreen>
     return fmtNum(type == '과세' ? supply ~/ 10 : 0);
   }
 
-  Widget _itemCell(TextEditingController c) => Padding(
-    padding: const EdgeInsets.all(4),
-    child: TextFormField(
-      controller: c,
-      decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6)),
-    ),
-  );
+  /// 품목명 자동완성 셀 — 창고 품목 참조, 선택 시 단가 자동입력
+  Widget _autoItemCell(Map<String, dynamic> row, StateSetter setDlg) {
+    final nameCtrl  = row['name']      as TextEditingController;
+    final nameFocus = row['nameFocus'] as FocusNode;
+    final priceCtrl = row['price']     as TextEditingController;
+
+    return Padding(
+      padding: const EdgeInsets.all(4),
+      child: _inventoryItems.isEmpty
+          // 품목 없으면 일반 입력
+          ? TextFormField(
+              controller: nameCtrl,
+              decoration: const InputDecoration(
+                border: OutlineInputBorder(),
+                isDense: true,
+                contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                hintText: '품목명',
+              ),
+            )
+          // 품목 있으면 자동완성
+          : RawAutocomplete<InventoryItem>(
+              textEditingController: nameCtrl,
+              focusNode: nameFocus,
+              optionsBuilder: (TextEditingValue tv) {
+                if (tv.text.isEmpty) return _inventoryItems;
+                final q = tv.text.toLowerCase();
+                return _inventoryItems.where((i) =>
+                    i.name.toLowerCase().contains(q) ||
+                    i.code.toLowerCase().contains(q));
+              },
+              displayStringForOption: (i) => i.name,
+              onSelected: (InventoryItem selected) {
+                setDlg(() {
+                  nameCtrl.text = selected.name;
+                  if (selected.sellPrice > 0) {
+                    priceCtrl.text = selected.sellPrice.toString();
+                  }
+                });
+              },
+              fieldViewBuilder: (ctx, ctrl, focus, onSubmit) => TextFormField(
+                controller: ctrl,
+                focusNode: focus,
+                onChanged: (_) => setDlg(() {}),
+                decoration: const InputDecoration(
+                  border: OutlineInputBorder(),
+                  isDense: true,
+                  contentPadding: EdgeInsets.symmetric(horizontal: 6, vertical: 6),
+                  hintText: '품목명 입력/선택',
+                ),
+              ),
+              optionsViewBuilder: (ctx, onSelected, options) => Align(
+                alignment: Alignment.topLeft,
+                child: Material(
+                  elevation: 6,
+                  borderRadius: BorderRadius.circular(6),
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxHeight: 220, maxWidth: 320),
+                    child: ListView.separated(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      itemCount: options.length,
+                      separatorBuilder: (_, __) => const Divider(height: 1),
+                      itemBuilder: (_, idx) {
+                        final item = options.elementAt(idx);
+                        return InkWell(
+                          onTap: () => onSelected(item),
+                          child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                            child: Row(children: [
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    Text(item.name,
+                                        style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
+                                    if (item.code.isNotEmpty || item.unit.isNotEmpty)
+                                      Text(
+                                        [if (item.code.isNotEmpty) item.code,
+                                         if (item.category.isNotEmpty) item.category,
+                                         if (item.unit.isNotEmpty) item.unit].join(' · '),
+                                        style: TextStyle(fontSize: 11, color: Colors.grey[600]),
+                                      ),
+                                  ],
+                                ),
+                              ),
+                              if (item.sellPrice > 0) ...[
+                                const SizedBox(width: 8),
+                                Text(
+                                  '${fmtNum(item.sellPrice)}원',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: Color(0xFF0D6EFD), fontWeight: FontWeight.w500),
+                                ),
+                              ],
+                            ]),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+    );
+  }
 
   Widget _numCell(TextEditingController c, {ValueChanged<String>? onChanged}) => Padding(
     padding: const EdgeInsets.all(4),
@@ -361,7 +472,7 @@ class _InvoicesScreenState extends State<InvoicesScreen>
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text('발행', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  Text('세금/거래/지출 > 세금계산서 > 발행',
+                  Text('계산서 > 발행',
                       style: TextStyle(fontSize: 11, color: Colors.grey)),
                 ],
               ),

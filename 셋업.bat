@@ -36,6 +36,19 @@ echo [3/4] 소스 파일 복사 중...
 xcopy /E /Y /I "%~dp0lib" "%PROJ_DIR%\lib\" >nul
 copy /Y "%~dp0pubspec.yaml" "%PROJ_DIR%\pubspec.yaml" >nul
 
+:: 앱 아이콘 교체 (Windows 창/작업표시줄 아이콘)
+if exist "%~dp0app_icon.ico" (
+    copy /Y "%~dp0app_icon.ico" "%PROJ_DIR%\windows\runner\resources\app_icon.ico" >nul
+    echo  - 앱 아이콘 교체 완료
+)
+
+:: Windows 창 타이틀 변경
+set MAIN_CPP=%PROJ_DIR%\windows\runner\main.cpp
+if exist "%MAIN_CPP%" (
+    powershell -Command "(Get-Content '%MAIN_CPP%') -replace 'tax_invoice', 'TokTok AI; Accounting Agent' | Set-Content '%MAIN_CPP%'"
+    echo  - 윈도우 타이틀 변경 완료
+)
+
 echo [4/4] 패키지 설치 중...
 cd "%PROJ_DIR%"
 flutter pub get

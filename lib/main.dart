@@ -10,6 +10,12 @@ import 'screens/company_screen.dart';
 import 'screens/documents_screen.dart';
 import 'screens/ai_settings_screen.dart';
 import 'screens/messenger_settings_screen.dart';
+import 'screens/warehouse_settings_screen.dart';
+import 'screens/inventory_items_screen.dart';
+import 'screens/inbound_screen.dart';
+import 'screens/outbound_screen.dart';
+import 'screens/warehouse_transfer_screen.dart';
+import 'screens/inventory_status_screen.dart';
 import 'widgets/ai_chat_panel.dart';
 import 'services/telegram_service.dart';
 
@@ -27,7 +33,7 @@ class TaxInvoiceApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: '톡톡AI,간편회계',
+      title: 'TokTok AI; Accounting Agent',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF0D6EFD)),
@@ -57,26 +63,38 @@ class _NavItem {
 }
 
 // ─── Top-level groups ──────────────────────────────────────────────────────
-const _topMenus = ['세금/거래', '견적관리', '기본정보'];
+const _topMenus = ['계산서', '견적관리', '재고관리', '고객관리', '기초설정'];
 
 const List<List<_NavItem>> _sideNavGroups = [
   // 세금/거래
   [
-    _NavItem(icon: Icons.edit_note,      label: '발행',       section: '세금계산서'),
+    _NavItem(icon: Icons.edit_note,      label: '발행',    section: '계산서'),
     _NavItem(icon: Icons.arrow_upward,   label: '매출조회'),
     _NavItem(icon: Icons.arrow_downward, label: '매입조회'),
     _NavItem(icon: Icons.table_chart,    label: '합계표'),
-    _NavItem(icon: Icons.business,       label: '거래처 관리', section: '기초정보'),
   ],
   // 견적관리
   [
-    _NavItem(icon: Icons.request_quote,  label: '견적서',     section: '견적관리'),
+    _NavItem(icon: Icons.request_quote,  label: '견적서',    section: '견적관리'),
     _NavItem(icon: Icons.local_shipping, label: '거래명세표'),
     _NavItem(icon: Icons.savings,        label: '입금표'),
   ],
-  // 회사 정보
+  // 창고관리
   [
-    _NavItem(icon: Icons.business_center, label: '회사정보',  section: '기본정보'),
+    _NavItem(icon: Icons.warehouse,      label: '창고 설정',  section: '재고관리'),
+    _NavItem(icon: Icons.inventory_2,    label: '품목 관리'),
+    _NavItem(icon: Icons.move_to_inbox,  label: '입고',        section: '입출고'),
+    _NavItem(icon: Icons.outbox,         label: '출고'),
+    _NavItem(icon: Icons.swap_horiz,     label: '창고간 이동'),
+    _NavItem(icon: Icons.bar_chart,      label: '재고 현황',   section: '현황'),
+  ],
+  // 고객관리 (거래처 관리 이동)
+  [
+    _NavItem(icon: Icons.business,       label: '거래처 관리', section: '고객'),
+  ],
+  // 기본정보
+  [
+    _NavItem(icon: Icons.business_center, label: '회사정보',   section: '기초설정'),
     _NavItem(icon: Icons.psychology,      label: 'AI 설정'),
     _NavItem(icon: Icons.message,         label: '메신저 설정'),
   ],
@@ -116,18 +134,21 @@ class _HomeShellState extends State<HomeShell> {
 
   String get _currentScreenName {
     const names = [
-      ['발행','매출조회','매입조회','합계표','거래처관리'],
+      ['발행','매출조회','매입조회','합계표'],
       ['견적서','거래명세표','입금표'],
+      ['창고설정','품목관리','입고','출고','창고간이동','재고현황'],
+      ['거래처관리'],
       ['회사정보','AI설정','메신저설정'],
     ];
-    final t = _topIdx.clamp(0, 2);
+    // 상단 메뉴 이름 변경 반영: 세금/거래→계산서, 창고관리→재고관리, 기본정보→기초설정
+    final t = _topIdx.clamp(0, 4);
     final s = _sideIdx.clamp(0, names[t].length - 1);
     return '${_topMenus[t]} > ${names[t][s]}';
   }
 
   void _navigateTo(int topIdx, int sideIdx) {
     setState(() {
-      _topIdx  = topIdx.clamp(0, 2);
+      _topIdx  = topIdx.clamp(0, 4);
       _sideIdx = sideIdx;
     });
   }
@@ -139,19 +160,32 @@ class _HomeShellState extends State<HomeShell> {
         const SalesScreen(),
         const PurchasesScreen(),
         const SummaryScreen(),
-        PartnersScreen(key: ValueKey('partners_$_partnerVersion')),
-      ][_sideIdx.clamp(0, 4)];
+      ][_sideIdx.clamp(0, 3)];
     }
     if (_topIdx == 1) {
       const types = ['견적서', '거래명세표', '입금표'];
       return DocumentsScreen(
         key: ValueKey('docs_${types[_sideIdx.clamp(0, 2)]}_$_docVersion'),
-        docType: types[_sideIdx.clamp(0, 3)],
+        docType: types[_sideIdx.clamp(0, 2)],
         pendingCreate: _pendingDoc,
         onPendingConsumed: () => setState(() => _pendingDoc = null),
       );
     }
-    // 회사 정보
+    if (_topIdx == 2) {
+      return [
+        const WarehouseSettingsScreen(),
+        const InventoryItemsScreen(),
+        const InboundScreen(),
+        const OutboundScreen(),
+        const WarehouseTransferScreen(),
+        const InventoryStatusScreen(),
+      ][_sideIdx.clamp(0, 5)];
+    }
+    if (_topIdx == 3) {
+      // 고객관리 — 거래처 관리
+      return PartnersScreen(key: ValueKey('partners_$_partnerVersion'));
+    }
+    // 기본정보
     return [
       const CompanyScreen(),
       const AiSettingsScreen(),
