@@ -1,9 +1,5 @@
 # 톡톡AI,간편회계(TokTok AI;Accounting Agent)
 
-**Program Name**: TokTok AI; Accounting Agent
-**Author**:  MediaIN https://www.mediain.co.kr
-**E-Mail**: pixel@mediain.co.kr
-
 This project is an open-source accounting ledger designed for the Korean SOHO business environment, featuring a simple agent created for bakers that runs on a basic local SQLite DB.
 
 For commercial services, we are developing versions for PostgreSQL, an open-source object-relational database known for its stability and scalability, in addition to MariaDB (MySQL) and MS-SQL. We are designing lightweight agent services for the web, CRM, shopping malls, and IoT devices.
@@ -20,6 +16,8 @@ We look forward to your interest and feedback.
 자연어로 "ABC회사 모니터 2개 50만원 견적서 작성"이라고 입력하면 AI가 자동으로 문서를 생성하고 리스트에 등록합니다.  
 텔레그램 봇으로도 동일하게 명령할 수 있습니다.
 
+**Author**: MediaIN https://www.mediain.co.kr  
+**E-Mail**: pixel@mediain.co.kr  
 **라이선스**: MIT  
 **버전**: 1.0.0  
 **플랫폼**: Windows 10/11 (64-bit)
