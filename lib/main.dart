@@ -18,6 +18,11 @@ import 'screens/warehouse_transfer_screen.dart';
 import 'screens/inventory_status_screen.dart';
 import 'widgets/ai_chat_panel.dart';
 import 'services/telegram_service.dart';
+import 'services/kakao_channel_service.dart';
+import 'services/kakao_play_mcp_service.dart';
+import 'services/kakao_direct_service.dart';
+import 'services/kakao_php_service.dart';
+import 'db_helper.dart';
 
 void main() {
   if (Platform.isWindows || Platform.isLinux || Platform.isMacOS) {
@@ -124,11 +129,43 @@ class _HomeShellState extends State<HomeShell> {
     TelegramService.onDocCreated      = () { if (mounted) setState(() => _docVersion++); };
     TelegramService.onInvoiceCreated  = () { if (mounted) setState(() => _invoiceVersion++); };
     TelegramService.start();
+
+    KakaoChannelService.onDocCreated     = () { if (mounted) setState(() => _docVersion++); };
+    KakaoChannelService.onInvoiceCreated = () { if (mounted) setState(() => _invoiceVersion++); };
+    KakaoChannelService.start();
+
+    KakaoDirectService.onDocCreated     = () { if (mounted) setState(() => _docVersion++); };
+    KakaoDirectService.onInvoiceCreated = () { if (mounted) setState(() => _invoiceVersion++); };
+    KakaoDirectService.start();
+
+    // PHP 릴레이 서비스 초기화
+    _initPhpService();
+  }
+
+  Future<void> _initPhpService() async {
+    final settings = await DbHelper.getMessengerSettings();
+    if (settings == null) return;
+    if (settings.kakaoPhpServerUrl.isEmpty || settings.kakaoPhpApiKey.isEmpty) return;
+
+    final svc = KakaoPhpService();
+    svc.init(
+      serverUrl: settings.kakaoPhpServerUrl,
+      apiKey:    settings.kakaoPhpApiKey,
+      enabled:   settings.kakaoPhpEnabled,
+    );
+    svc.onMessage = (msg) {
+      // 수신 메시지를 KakaoDirectService 의 processUtterance 와 동일하게 처리
+      KakaoDirectService.processUtterance(msg.utterance, msg.userId);
+    };
+    if (settings.kakaoPhpEnabled) svc.startPolling();
   }
 
   @override
   void dispose() {
     TelegramService.stop();
+    KakaoChannelService.stop();
+    KakaoDirectService.stop();
+    KakaoPhpService().stopPolling();
     super.dispose();
   }
 
@@ -305,9 +342,21 @@ class _HomeShellState extends State<HomeShell> {
                           },
                           onDocCreated: () {
                             setState(() => _docVersion++);
+                            KakaoPlayMcpService.sendNotification(
+                              '📄 문서가 등록되었습니다. 앱 → 견적관리에서 확인하세요.',
+                            ).catchError((_) {});
+                            KakaoDirectService.sendNotification(
+                              '📄 문서가 등록되었습니다. 앱 → 견적관리에서 확인하세요.',
+                            ).catchError((_) {});
                           },
                           onInvoiceCreated: () {
                             setState(() => _invoiceVersion++);
+                            KakaoPlayMcpService.sendNotification(
+                              '🧾 세금계산서가 등록되었습니다. 앱 → 계산서에서 확인하세요.',
+                            ).catchError((_) {});
+                            KakaoDirectService.sendNotification(
+                              '🧾 세금계산서가 등록되었습니다. 앱 → 계산서에서 확인하세요.',
+                            ).catchError((_) {});
                           },
                         )
                       : const SizedBox.shrink(),

@@ -20,7 +20,7 @@ class DbHelper {
 
     return openDatabase(
       dbPath,
-      version: 5,
+      version: 9,
       onCreate: _onCreate,
       onUpgrade: _onUpgrade,
     );
@@ -90,11 +90,81 @@ class DbHelper {
           kakao_api_key       TEXT DEFAULT '',
           kakao_sender_key    TEXT DEFAULT '',
           kakao_phone_no      TEXT DEFAULT '',
-          kakao_enabled       INTEGER DEFAULT 0
+          kakao_enabled       INTEGER DEFAULT 0,
+          kakao_relay_url     TEXT DEFAULT 'https://k.tess.dev',
+          kakao_relay_token   TEXT DEFAULT ''
         )
       ''');
     }
     if (oldV < 5) await _createV5Tables(db);
+    // v6: kakao 릴레이 컬럼 추가 (기존 알림톡 컬럼은 유지, 미사용)
+    if (oldV < 6) {
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_relay_url TEXT DEFAULT 'https://k.tess.dev'");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_relay_token TEXT DEFAULT ''");
+      } catch (_) {}
+    }
+    // v7: PlayMCP (나와의 채팅방 알림) 컬럼 추가
+    if (oldV < 7) {
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_play_mcp_access_token TEXT DEFAULT ''");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_play_mcp_refresh_token TEXT DEFAULT ''");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_play_mcp_notify INTEGER DEFAULT 0");
+      } catch (_) {}
+    }
+    // v8: 카카오 직접 연결 (자체 채널 + REST API) 컬럼 추가
+    if (oldV < 8) {
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_direct_access_token TEXT DEFAULT ''");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_direct_refresh_token TEXT DEFAULT ''");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_direct_notify INTEGER DEFAULT 0");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_direct_bot_enabled INTEGER DEFAULT 0");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_direct_port INTEGER DEFAULT 18080");
+      } catch (_) {}
+    }
+    // v9: PHP 릴레이 서버 컬럼 추가
+    if (oldV < 9) {
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_php_server_url TEXT DEFAULT ''");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_php_api_key TEXT DEFAULT ''");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_php_enabled INTEGER DEFAULT 0");
+      } catch (_) {}
+      try {
+        await db.execute(
+            "ALTER TABLE messenger_settings ADD COLUMN kakao_php_send_user_id TEXT DEFAULT ''");
+      } catch (_) {}
+    }
   }
 
   static Future<void> _createV5Tables(Database db) async {
@@ -239,14 +309,24 @@ class DbHelper {
     ''');
     await db.execute('''
       CREATE TABLE IF NOT EXISTS messenger_settings (
-        id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-        telegram_bot_token  TEXT DEFAULT '',
-        telegram_chat_id    TEXT DEFAULT '',
-        telegram_enabled    INTEGER DEFAULT 0,
-        kakao_api_key       TEXT DEFAULT '',
-        kakao_sender_key    TEXT DEFAULT '',
-        kakao_phone_no      TEXT DEFAULT '',
-        kakao_enabled       INTEGER DEFAULT 0
+        id                           INTEGER PRIMARY KEY AUTOINCREMENT,
+        telegram_bot_token           TEXT DEFAULT '',
+        telegram_chat_id             TEXT DEFAULT '',
+        telegram_enabled             INTEGER DEFAULT 0,
+        kakao_api_key                TEXT DEFAULT '',
+        kakao_sender_key             TEXT DEFAULT '',
+        kakao_phone_no               TEXT DEFAULT '',
+        kakao_enabled                INTEGER DEFAULT 0,
+        kakao_relay_url              TEXT DEFAULT 'https://k.tess.dev',
+        kakao_relay_token            TEXT DEFAULT '',
+        kakao_play_mcp_access_token  TEXT DEFAULT '',
+        kakao_play_mcp_refresh_token TEXT DEFAULT '',
+        kakao_play_mcp_notify        INTEGER DEFAULT 0,
+        kakao_direct_access_token    TEXT DEFAULT '',
+        kakao_direct_refresh_token   TEXT DEFAULT '',
+        kakao_direct_notify          INTEGER DEFAULT 0,
+        kakao_direct_bot_enabled     INTEGER DEFAULT 0,
+        kakao_direct_port            INTEGER DEFAULT 18080
       )
     ''');
   }

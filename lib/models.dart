@@ -404,21 +404,46 @@ class MessengerSettings {
   final String telegramBotToken;
   final String telegramChatId;
   final bool telegramEnabled;
-  // KakaoTalk (카카오 알림톡 REST API)
-  final String kakaoApiKey;
-  final String kakaoSenderKey;
-  final String kakaoPhoneNo;
+  // KakaoTalk 릴레이 (수신 — openclaw relay)
+  final String kakaoRelayUrl;    // 기본값: https://k.tess.dev
+  final String kakaoRelayToken;  // 페어링 후 발급된 세션 토큰
   final bool kakaoEnabled;
+  // KakaoTalk PlayMCP (발신 — 나와의 채팅방 알림)
+  final String kakaoPlayMcpAccessToken;
+  final String kakaoPlayMcpRefreshToken;
+  final bool   kakaoPlayMcpNotify;  // 이벤트 발생 시 나와의채팅방으로 알림
+  // KakaoTalk 직접 연결 (자체 채널 + REST API, 외부 릴레이 불필요)
+  final String kakaoDirectAccessToken;   // OAuth 액세스 토큰 (나에게 보내기)
+  final String kakaoDirectRefreshToken;  // 갱신 토큰
+  final bool   kakaoDirectNotify;        // 이벤트 알림 ON/OFF
+  final bool   kakaoDirectBotEnabled;    // 채팅봇(수신) ON/OFF
+  final int    kakaoDirectPort;          // 내장 웹훅 서버 포트 (기본 18080)
+  // KakaoTalk PHP 릴레이 서버 (VPS — 1:1 송수신)
+  final String kakaoPhpServerUrl;        // PHP 릴레이 서버 URL (예: https://yourdomain.com/kakao_relay)
+  final String kakaoPhpApiKey;           // API 인증 키 (config.php 의 API_KEY)
+  final bool   kakaoPhpEnabled;          // PHP 릴레이 활성화
+  final String kakaoPhpSendUserId;       // 특정 1명에게 보내기 — 카카오 UUID
 
   const MessengerSettings({
     this.id,
-    this.telegramBotToken = '',
-    this.telegramChatId   = '',
-    this.telegramEnabled  = false,
-    this.kakaoApiKey      = '',
-    this.kakaoSenderKey   = '',
-    this.kakaoPhoneNo     = '',
-    this.kakaoEnabled     = false,
+    this.telegramBotToken        = '',
+    this.telegramChatId          = '',
+    this.telegramEnabled         = false,
+    this.kakaoRelayUrl           = 'https://k.tess.dev',
+    this.kakaoRelayToken         = '',
+    this.kakaoEnabled            = false,
+    this.kakaoPlayMcpAccessToken  = '',
+    this.kakaoPlayMcpRefreshToken = '',
+    this.kakaoPlayMcpNotify       = false,
+    this.kakaoDirectAccessToken   = '',
+    this.kakaoDirectRefreshToken  = '',
+    this.kakaoDirectNotify        = false,
+    this.kakaoDirectBotEnabled    = false,
+    this.kakaoDirectPort          = 18080,
+    this.kakaoPhpServerUrl        = '',
+    this.kakaoPhpApiKey           = '',
+    this.kakaoPhpEnabled          = false,
+    this.kakaoPhpSendUserId       = '',
   });
 
   factory MessengerSettings.fromMap(Map<String, dynamic> m) => MessengerSettings(
@@ -426,20 +451,44 @@ class MessengerSettings {
     telegramBotToken: (m['telegram_bot_token'] as String?) ?? '',
     telegramChatId:   (m['telegram_chat_id']   as String?) ?? '',
     telegramEnabled:  (m['telegram_enabled']   as int?) == 1,
-    kakaoApiKey:      (m['kakao_api_key']       as String?) ?? '',
-    kakaoSenderKey:   (m['kakao_sender_key']    as String?) ?? '',
-    kakaoPhoneNo:     (m['kakao_phone_no']      as String?) ?? '',
-    kakaoEnabled:     (m['kakao_enabled']       as int?) == 1,
+    kakaoRelayUrl:    (m['kakao_relay_url']     as String?)?.isNotEmpty == true
+                          ? m['kakao_relay_url'] as String
+                          : 'https://k.tess.dev',
+    kakaoRelayToken:          (m['kakao_relay_token']           as String?) ?? '',
+    kakaoEnabled:             (m['kakao_enabled']               as int?) == 1,
+    kakaoPlayMcpAccessToken:  (m['kakao_play_mcp_access_token'] as String?) ?? '',
+    kakaoPlayMcpRefreshToken: (m['kakao_play_mcp_refresh_token'] as String?) ?? '',
+    kakaoPlayMcpNotify:       (m['kakao_play_mcp_notify']       as int?) == 1,
+    kakaoDirectAccessToken:  (m['kakao_direct_access_token']  as String?) ?? '',
+    kakaoDirectRefreshToken: (m['kakao_direct_refresh_token'] as String?) ?? '',
+    kakaoDirectNotify:       (m['kakao_direct_notify']        as int?) == 1,
+    kakaoDirectBotEnabled:   (m['kakao_direct_bot_enabled']   as int?) == 1,
+    kakaoDirectPort:         (m['kakao_direct_port']          as int?) ?? 18080,
+    kakaoPhpServerUrl:       (m['kakao_php_server_url']       as String?) ?? '',
+    kakaoPhpApiKey:          (m['kakao_php_api_key']          as String?) ?? '',
+    kakaoPhpEnabled:         (m['kakao_php_enabled']          as int?) == 1,
+    kakaoPhpSendUserId:      (m['kakao_php_send_user_id']     as String?) ?? '',
   );
 
   Map<String, dynamic> toMap() => {
-    'telegram_bot_token': telegramBotToken,
-    'telegram_chat_id':   telegramChatId,
-    'telegram_enabled':   telegramEnabled ? 1 : 0,
-    'kakao_api_key':      kakaoApiKey,
-    'kakao_sender_key':   kakaoSenderKey,
-    'kakao_phone_no':     kakaoPhoneNo,
-    'kakao_enabled':      kakaoEnabled ? 1 : 0,
+    'telegram_bot_token':          telegramBotToken,
+    'telegram_chat_id':            telegramChatId,
+    'telegram_enabled':            telegramEnabled ? 1 : 0,
+    'kakao_relay_url':             kakaoRelayUrl,
+    'kakao_relay_token':           kakaoRelayToken,
+    'kakao_enabled':               kakaoEnabled ? 1 : 0,
+    'kakao_play_mcp_access_token':  kakaoPlayMcpAccessToken,
+    'kakao_play_mcp_refresh_token': kakaoPlayMcpRefreshToken,
+    'kakao_play_mcp_notify':        kakaoPlayMcpNotify ? 1 : 0,
+    'kakao_direct_access_token':  kakaoDirectAccessToken,
+    'kakao_direct_refresh_token': kakaoDirectRefreshToken,
+    'kakao_direct_notify':        kakaoDirectNotify ? 1 : 0,
+    'kakao_direct_bot_enabled':   kakaoDirectBotEnabled ? 1 : 0,
+    'kakao_direct_port':          kakaoDirectPort,
+    'kakao_php_server_url':       kakaoPhpServerUrl,
+    'kakao_php_api_key':          kakaoPhpApiKey,
+    'kakao_php_enabled':          kakaoPhpEnabled ? 1 : 0,
+    'kakao_php_send_user_id':     kakaoPhpSendUserId,
   };
 }
 
