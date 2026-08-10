@@ -217,7 +217,9 @@ We look forward to your interest and feedback.
 
 ### 방법 A — 설치파일 (권장)
 
-1. [Releases](../../releases) 페이지에서 `TokTokAI_Setup_x.x.x.exe` 다운로드
+**[⬇ TokTokAI_Setup_1.0.0.exe 다운로드](https://www.mediain.co.kr/upload/products/TokTokAI_Setup_1.0.0.exe)** (Windows 10/11 64-bit)
+
+1. 위 링크 또는 [Releases](../../releases) 페이지에서 `TokTokAI_Setup_x.x.x.exe` 다운로드
 2. 설치 마법사 실행 → Next → Install
 3. 바탕화면 아이콘 또는 시작 메뉴에서 실행
 
